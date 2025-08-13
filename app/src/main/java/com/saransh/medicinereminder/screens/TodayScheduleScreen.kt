@@ -1,34 +1,38 @@
 package com.saransh.medicinereminder.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import com.saransh.medicinereminder.models.DailySchedule
+import com.saransh.medicinereminder.utils.getNextDose
 import com.saransh.medicinereminder.viewmodel.TodayScheduleViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun TodayScheduleScreen(
     todaySchedules: List<DailySchedule>,
     todayScheduleViewModel: TodayScheduleViewModel,
+    navController: NavHostController,
     onAddClick: () -> Unit
 ) {
-    // Group schedules by taskName
     val groupedSchedules = todaySchedules.groupBy { it.taskName }
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = onAddClick) {
-                Text("+")
+                Text("+", style = MaterialTheme.typography.titleLarge)
             }
         }
     ) { padding ->
@@ -37,6 +41,7 @@ fun TodayScheduleScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     "No schedules for today",
@@ -55,8 +60,17 @@ fun TodayScheduleScreen(
                 groupedSchedules.forEach { (taskName, doses) ->
                     item {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    // Navigate to MedicineDetailScreen using first dose's ID
+                                    navController.navigate("medicine_detail/${doses.first().id}")
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -65,13 +79,13 @@ fun TodayScheduleScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         taskName,
-                                        style = MaterialTheme.typography.titleLarge
+                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                                     )
-                                    // Delete button
                                     IconButton(
                                         onClick = {
                                             doses.forEach { dose ->
@@ -85,11 +99,21 @@ fun TodayScheduleScreen(
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                doses.sortedBy { it.startTime }.forEach { dose ->
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Display only the next upcoming dose
+                                val nextDose = getNextDose(doses)
+                                nextDose?.let { dose ->
                                     Text(
-                                        dose.startTime,
-                                        style = MaterialTheme.typography.bodyMedium
+                                        text = "Next Dose: ${dose.startTime}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                                shape = RoundedCornerShape(50)
+                                            )
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
                                     )
                                 }
                             }
