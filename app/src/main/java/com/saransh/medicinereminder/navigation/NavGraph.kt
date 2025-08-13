@@ -1,78 +1,91 @@
 package com.saransh.medicinereminder.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.saransh.medicinereminder.data.MedicineRepository
 import com.saransh.medicinereminder.screens.AddScheduleBasicInfoScreen
 import com.saransh.medicinereminder.screens.AddScheduleTimeScreen
 import com.saransh.medicinereminder.screens.TodayScheduleScreen
+import com.saransh.medicinereminder.utils.getTodayMidnightEpoch
 import com.saransh.medicinereminder.viewmodel.TodayScheduleViewModel
-import com.saransh.medicinereminder.models.DailySchedule
+import com.saransh.medicinereminder.viewmodel.TodayScheduleViewModelFactory
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun NavGraph(
     navController: NavHostController,
-    todayScheduleViewModel: TodayScheduleViewModel
+    repository: MedicineRepository,
+    modifier: Modifier = Modifier
 ) {
-    NavHost(navController = navController, startDestination = "todaySchedule") {
+    val todayScheduleViewModel: TodayScheduleViewModel = viewModel(
+        factory = TodayScheduleViewModelFactory(repository)
+    )
 
-        // TODAY SCHEDULE SCREEN
-        composable("todaySchedule") {
-            val todaySchedules by todayScheduleViewModel.todaySchedules.collectAsState()
+    val todaySchedulesState = todayScheduleViewModel.todaySchedules.collectAsState()
+
+    NavHost(
+        navController = navController,
+        startDestination = "today_schedule",
+        modifier = modifier
+    ) {
+        // TODAY
+        composable("today_schedule") {
             TodayScheduleScreen(
-                todaySchedules = todaySchedules,
-                todayScheduleViewModel = todayScheduleViewModel, // ✅ Fixed
-                onAddClick = { navController.navigate("addScheduleBasicInfo") }
+                todaySchedules = todaySchedulesState.value,
+                todayScheduleViewModel = todayScheduleViewModel,
+                onAddClick = { navController.navigate("add_schedule_basic_info") }
             )
         }
 
-        // ADD BASIC INFO SCREEN
-        composable("addScheduleBasicInfo") {
-            AddScheduleBasicInfoScreen(
-                onNext = { medicineName, doctorName, frequencyCount, frequencyType ->
-                    navController.navigate(
-                        "addScheduleTime/$medicineName/$doctorName/$frequencyCount/$frequencyType"
-                    )
-                }
-            )
+        // BASIC INFO
+        composable("add_schedule_basic_info") {
+            AddScheduleBasicInfoScreen { medicineName, doctorName, freqCount, freqType ->
+                val m = Uri.encode(medicineName)
+                val d = Uri.encode(doctorName ?: "")
+                val t = Uri.encode(freqType)
+                navController.navigate("add_schedule_time/$m/$d/$freqCount/$t")
+            }
         }
 
-        // ADD TIME SCREEN
+        // TIME SELECTION
         composable(
-            route = "addScheduleTime/{medicineName}/{doctorName}/{frequencyCount}/{frequencyType}",
+            route = "add_schedule_time/{medicineName}/{doctorName}/{freqCount}/{freqType}",
             arguments = listOf(
                 navArgument("medicineName") { type = NavType.StringType },
                 navArgument("doctorName") { type = NavType.StringType; defaultValue = "" },
-                navArgument("frequencyCount") { type = NavType.IntType },
-                navArgument("frequencyType") { type = NavType.StringType }
+                navArgument("freqCount") { type = NavType.IntType },
+                navArgument("freqType") { type = NavType.StringType }
             )
         ) { backStackEntry ->
 
-            val medicineName = backStackEntry.arguments?.getString("medicineName") ?: ""
-            val doctorName = backStackEntry.arguments?.getString("doctorName")?.takeIf { it.isNotEmpty() }
-            val frequencyCount = backStackEntry.arguments?.getInt("frequencyCount") ?: 1
-            val frequencyType = backStackEntry.arguments?.getString("frequencyType") ?: "Daily"
+            val medicineNameArg = Uri.decode(backStackEntry.arguments?.getString("medicineName") ?: "")
+            val doctorNameArg = Uri.decode(backStackEntry.arguments?.getString("doctorName") ?: "")
+            val freqCountArg = backStackEntry.arguments?.getInt("freqCount") ?: 1
+            val freqTypeArg = Uri.decode(backStackEntry.arguments?.getString("freqType") ?: "")
 
             AddScheduleTimeScreen(
-                medicineName = medicineName,
-                doctorName = doctorName,
-                frequencyCount = frequencyCount,
-                frequencyType = frequencyType,
-                onSave = { times, _repeats ->
-                    val today = Date()
-                    val dayOfWeek = SimpleDateFormat("EEEE", Locale.getDefault()).format(today)
+                medicineName = medicineNameArg,
+                doctorName = doctorNameArg,
+                frequencyCount = freqCountArg,
+                frequencyType = freqTypeArg,
+                onSave = { medicineName, times ->
+                    val todayMidnight = getTodayMidnightEpoch()
+                    val dayOfWeek = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
 
                     times.forEach { time ->
                         if (time.isNotEmpty()) {
-                            val schedule = DailySchedule(
-                                date = today.time,
+                            val schedule = com.saransh.medicinereminder.models.DailySchedule(
+                                date = todayMidnight,
                                 dayOfWeek = dayOfWeek,
                                 startTime = time,
                                 endTime = "",
@@ -81,9 +94,10 @@ fun NavGraph(
                             todayScheduleViewModel.addSchedule(schedule)
                         }
                     }
-                    navController.popBackStack("todaySchedule", inclusive = false)
+                    // ✅ Always go back to TodayScheduleScreen
+                    navController.popBackStack("today_schedule", inclusive = false)
                 },
-                onBack = { navController.popBackStack() }
+                onCancel = { navController.popBackStack() }
             )
         }
     }
