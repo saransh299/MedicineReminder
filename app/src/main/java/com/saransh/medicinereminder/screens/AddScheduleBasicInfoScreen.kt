@@ -1,9 +1,10 @@
 package com.saransh.medicinereminder.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
@@ -58,7 +59,6 @@ fun AddScheduleBasicInfoScreen(
         Spacer(Modifier.height(24.dp))
 
         Text("Frequency", style = MaterialTheme.typography.titleMedium)
-
         Spacer(Modifier.height(12.dp))
 
         // Frequency Count Dropdown
