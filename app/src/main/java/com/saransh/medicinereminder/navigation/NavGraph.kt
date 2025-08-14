@@ -110,12 +110,18 @@ fun NavGraph(
 
             val scheduleId = backStackEntry.arguments?.getLong("scheduleId") ?: 0L
 
-            // ✅ Convert it.id to Long for comparison
+            // ✅ Find the clicked schedule
             val schedule = todaySchedulesState.value.find { it.id.toLong() == scheduleId }
 
             schedule?.let {
+                // ✅ Pass all schedules for the same medicine to the detail screen
+                val allSchedulesForMedicine = todaySchedulesState.value.filter { dose ->
+                    dose.taskName == schedule.taskName
+                }
+
                 MedicineDetailScreen(
                     schedule = it,
+                    allSchedulesForMedicine = allSchedulesForMedicine,
                     onDelete = {
                         todayScheduleViewModel.deleteSchedule(it)
                         navController.popBackStack()
