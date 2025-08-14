@@ -3,12 +3,12 @@ package com.saransh.medicinereminder.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.saransh.medicinereminder.models.DailySchedule
@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun TodayScheduleScreen(
@@ -32,88 +31,107 @@ fun TodayScheduleScreen(
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = onAddClick) {
-                Text("+", style = MaterialTheme.typography.titleLarge)
+                Text("+")
             }
         }
     ) { padding ->
-        if (groupedSchedules.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "No schedules for today",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+
+            // ====== HEADER ======
+            Text(
+                text = "Your medicines for today",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), thickness = 1.dp)
+
+            // ====== EMPTY STATE ======
+            if (groupedSchedules.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No medicines scheduled for today",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.Gray
+                    )
+                }
+            } else {
+                // ====== LIST OF CARDS ======
                 groupedSchedules.forEach { (taskName, doses) ->
-                    item {
-                        Card(
+                    val nextDose = getNextDose(doses)
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                navController.navigate("medicine_detail/${doses.first().id}")
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    // Navigate to MedicineDetailScreen using first dose's ID
-                                    navController.navigate("medicine_detail/${doses.first().id}")
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            ),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                                .padding(16.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
+                                Text(
+                                    taskName,
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                                IconButton(
+                                    onClick = {
+                                        doses.forEach { dose ->
+                                            todayScheduleViewModel.deleteSchedule(dose)
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete"
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            nextDose?.let { dose ->
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        taskName,
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            doses.forEach { dose ->
-                                                todayScheduleViewModel.deleteSchedule(dose)
-                                            }
-                                        }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete"
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                // Display only the next upcoming dose
-                                val nextDose = getNextDose(doses)
-                                nextDose?.let { dose ->
-                                    Text(
-                                        text = "Next Dose: ${dose.startTime}",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        text = dose.startTime,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier
                                             .background(
                                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                                shape = RoundedCornerShape(50)
+                                                shape = RoundedCornerShape(8.dp)
                                             )
                                             .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+
+                                    Text(
+                                        text = dose.status.takeIf { it.isNotBlank() } ?: "Pending",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
                                     )
                                 }
                             }
